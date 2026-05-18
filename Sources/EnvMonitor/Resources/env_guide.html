@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>开发环境说明</title>
+<style>
+  :root {
+    --bg: #f5f5f7; --card-bg: #ffffff; --text: #1d1d1f;
+    --text-secondary: #6e6e73; --accent: #0071e3; --border: #d2d2d7;
+    --tag-bg: #e8f0fe; --tag-text: #1967d2;
+    --tag-green: #e6f4ea; --tag-green-text: #137333;
+    --tag-orange: #fef7e0; --tag-orange-text: #b06000;
+    --tag-purple: #f3e8fd; --tag-purple-text: #7627c5;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6;
+    padding: 40px 20px 60px; -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-size: 32px; font-weight: 700; text-align: center;
+    margin-bottom: 8px; letter-spacing: -0.02em;
+  }
+  .subtitle { text-align: center; color: var(--text-secondary); font-size: 16px; margin-bottom: 12px; }
+  .section-title {
+    font-size: 18px; font-weight: 600; color: var(--text-secondary);
+    margin: 32px 0 12px 4px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card {
+    background: var(--card-bg); border-radius: 14px;
+    padding: 20px 24px; margin-bottom: 12px;
+    box-shadow: var(--shadow); border: 1px solid var(--border);
+  }
+  .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .card-icon { font-size: 24px; }
+  .card-title { font-size: 18px; font-weight: 600; }
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 500;
+    padding: 2px 8px; border-radius: 12px; margin-left: 6px;
+  }
+  .tag-blue { background: var(--tag-bg); color: var(--tag-text); }
+  .tag-green { background: var(--tag-green); color: var(--tag-green-text); }
+  .tag-orange { background: var(--tag-orange); color: var(--tag-orange-text); }
+  .tag-purple { background: var(--tag-purple); color: var(--tag-purple-text); }
+  .card-body { color: var(--text-secondary); font-size: 14px; }
+  .card-body p { margin-bottom: 4px; }
+  .card-body p:last-child { margin-bottom: 0; }
+  .card-body strong { color: var(--text); }
+  code { background: #f1f1f4; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  footer { text-align: center; color: var(--text-secondary); font-size: 13px; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🛠 开发环境说明</h1>
+  <p class="subtitle">25 个常用开发工具，大白话告诉你它们分别干什么</p>
+
+  <!-- ==================== 包管理器 ==================== -->
+  <div class="section-title">📦 包管理器</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🍺</span><span class="card-title">Homebrew</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>macOS 的「软件商店」命令行版。</p>
+      <p>不用再去官网一个个下载安装包，<code>brew install xxx</code> 就能装绝大多数开发工具。它统一管理安装、版本、升级、卸载。Mac 开发者的第一件装备。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🔄</span><span class="card-title">nvm</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>Node.js 版本的「遥控器」，随时切换不同 Node 版本。</p>
+      <p>不同项目可能依赖不同的 Node.js 版本（如 v16、v18、v20），nvm 让你一条命令随意切换。<code>nvm use 20</code> 就切过去了，不影响其他项目。前端开发基本人手一个。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">📋</span><span class="card-title">pnpm</span>
+      <span class="tag tag-green">推荐</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>比 npm 快 2 倍、省磁盘空间的 Node 包管理器。</p>
+      <p>pnpm 用硬链接共享依赖，装 100 个项目的同一个包只存一份。速度快、不占空间、严格区分依赖（不会偷偷用没声明的包）。Vite 官方推荐用它。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🧶</span><span class="card-title">Yarn</span>
+      <span class="tag tag-green">经典</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>Facebook 出品的 Node 包管理器，npm 的「加强版」。</p>
+      <p>比早期 npm 更快更稳定，锁文件（yarn.lock）确保团队装的是完全一致的依赖。pnpm 出现后使用率有所下降，但老项目仍然大量使用。</p>
+    </div>
+  </div>
+
+  <!-- ==================== 语言运行时 ==================== -->
+  <div class="section-title">⚡ 语言 & 运行时</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🟢</span><span class="card-title">Node.js</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>让 JavaScript 脱离浏览器、在服务器或本地直接运行的环境。</p>
+      <p>前端项目（React、Vue、Next.js）的构建工具链全指望它。npm 是它自带的包管理器。装不装 Node.js 基本等于能不能跑现代前端项目。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🔥</span><span class="card-title">Bun</span>
+      <span class="tag tag-purple">新锐</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>新一代 JS 全家桶——运行时 + 包管理 + 打包 + 测试，样样都快。</p>
+      <p>用 Zig 语言写的，比 Node.js 快好几倍。一条 <code>bun run</code> 跑 TS/JS 文件，<code>bun install</code> 装依赖飞快。Vibe coding 场景下特别顺手，因为它零配置就能跑 TypeScript。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🐍</span><span class="card-title">Python3</span>
+      <span class="tag tag-blue">常用</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>语法最简单的主流编程语言，AI/脚本/自动化一把手。</p>
+      <p>macOS 自带但版本偏旧，建议通过 Homebrew 装新版。pip3 是它的包管理器。AI 时代重要性飙升（PyTorch、Transformers、LangChain）。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">💎</span><span class="card-title">Ruby</span>
+      <span class="tag tag-green">可能有</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>语法优雅的脚本语言，CocoaPods/Jekyll 的基石。</p>
+      <p>如果你做 iOS 开发（CocoaPods）或写静态博客（Jekyll），就会用到它。macOS 自带 Ruby，但通常通过 Homebrew 装新版。gem 是它的包管理器。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🔵</span><span class="card-title">Go</span>
+      <span class="tag tag-green">进阶</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>Google 出品的后端语言，编译快、部署简单（一个二进制搞定）。</p>
+      <p>Docker、Kubernetes、Hugo、Terraform 都是用 Go 写的。很多前端工具链的底层依赖也是 Go（如 esbuild）。Vibe coding 时偶尔需要在 Go 后端项目里改点东西。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">⚙️</span><span class="card-title">Rust</span>
+      <span class="tag tag-green">进阶</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>速度和安全性拉满的系统级语言，新一代前端工具的「发动机」。</p>
+      <p>SWC、Rspack、Turbopack、Ruff（Python linter）全是用 Rust 写的。cargo 是它的包管理器。你不需要直接用 Rust 写业务代码，但装了它才能编译那些超快的前端工具链。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">☕️</span><span class="card-title">Java</span>
+      <span class="tag tag-green">可能有</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>「写一次，到处跑」的老牌企业级语言。</p>
+      <p>Android 开发、后端微服务（Spring Boot）的主语言。JAVA_HOME 是它的安装目录，很多工具要它来定位 JDK。做全栈开发迟早会碰上。</p>
+    </div>
+  </div>
+
+  <!-- ==================== 开发工具 ==================== -->
+  <div class="section-title">🔧 开发工具</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🔀</span><span class="card-title">Git</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>代码的「时光机 + 协作平台」。</p>
+      <p>记录每次改了什么、谁改的、什么时候。随时回到历史版本，多人协作不冲突。不用 Git 写代码，就像写文档不按保存键。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🔷</span><span class="card-title">TypeScript</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>给 JavaScript 加上「类型检查」，写代码时就能揪出低级错误。</p>
+      <p>把「运行时才发现 bug」变成「写代码时就报错」。现代前端项目的标配（Next.js、Nuxt、Vite 默认支持）。<code>tsc</code> 是它的编译器命令。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">⚡</span><span class="card-title">Vite</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>新一代前端构建工具，启动/热更新快如闪电。</p>
+      <p>传统 Webpack 项目启动要等几十秒，Vite 秒开。底层用 ESBuild（Go 写的）做预构建，原生 ESM 做开发服务。Vue、React、Svelte 项目的默认推荐构建工具。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🛡️</span><span class="card-title">ESLint</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>代码「语法警察」，自动检查你的 JS/TS 代码是否符合规范。</p>
+      <p>帮你抓出未使用的变量、可能的空指针、错误拼写等。配合 VS Code 插件实时提示。几乎所有前端项目都用它统一代码风格。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">📝</span><span class="card-title">Prettier</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>代码「美容师」，自动帮你格式化代码排版。</p>
+      <p>保存文件时自动整理缩进、换行、引号、逗号。团队不用再争论代码风格，Prettier 说了算。和 ESLint 搭配使用——ESLint 管质量，Prettier 管颜值。</p>
+    </div>
+  </div>
+
+  <!-- ==================== 容器 ==================== -->
+  <div class="section-title">📦 容器 & 环境</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🐳</span><span class="card-title">Docker</span>
+      <span class="tag tag-green">进阶</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>把应用和它需要的环境「打包成集装箱」，到哪都能原样运行。</p>
+      <p>解决「我电脑上能跑啊」经典问题。用 Docker 跑数据库（MySQL、Redis）等中间件，不用自己装一堆服务。Docker Desktop 是桌面 GUI，daemon 是后台服务进程。</p>
+    </div>
+  </div>
+
+  <!-- ==================== 编辑器 & 终端 ==================== -->
+  <div class="section-title">💻 编辑器 & 终端</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">💜</span><span class="card-title">VS Code</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>目前最流行的代码编辑器，微软出品，免费开源。</p>
+      <p>轻量、快、插件生态极其丰富。写前端、后端、脚本、Markdown 笔记都能用。前端圈的事实标准编辑器。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🖱️</span><span class="card-title">Cursor</span>
+      <span class="tag tag-purple">Vibe Coding</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>深度集成 AI 的代码编辑器，Vibe Coding 的主力工具。</p>
+      <p>基于 VS Code 内核，加上了强大的 AI 对话、代码生成、多文件编辑能力。用自然语言描述需求，AI 帮你写代码。Claude、GPT 模型直接在编辑器里用。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🖥️</span><span class="card-title">iTerm2</span>
+      <span class="tag tag-blue">推荐</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>macOS 自带终端的「究极加强版」。</p>
+      <p>分屏、热键呼出、全局搜索、自动补全、粘贴历史……比自带终端好用太多。开发者标配终端，配合 Oh My Zsh 使用效果更佳。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">✨</span><span class="card-title">Oh My Zsh</span>
+      <span class="tag tag-blue">推荐</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>让 zsh 终端变得好看又好用的框架。</p>
+      <p>提供漂亮的主题（显示 Git 分支、项目状态）、自动补全插件、命令别名。装完后终端从「能用」变「好用」。前端开发者的终端标配美化方案。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🌐</span><span class="card-title">Google Chrome</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>市场份额最高的浏览器，前端开发调试的主要阵地。</p>
+      <p>Chrome DevTools 是前端调试的瑞士军刀——检查元素、调试 JS、性能分析、网络请求。虽然写作时可能用 Safari，但开发调试一定用 Chrome。</p>
+    </div>
+  </div>
+
+  <!-- ==================== 系统 ==================== -->
+  <div class="section-title">🖥️ 系统</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🔨</span><span class="card-title">Xcode CLT</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>苹果官方提供的编译器和基础开发工具套装。</p>
+      <p>包含 C/C++ 编译器（clang）、Git 等基础工具。Homebrew、Python 编译包都依赖它。装完后你的 Mac 才算真正的开发者电脑。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">💻</span><span class="card-title">Shell</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>和操作系统「打字聊天」的界面。</p>
+      <p>打开「终端」App 后那个黑窗口背后的程序。macOS 默认是 zsh（2019 年后），之前是 bash。你敲的 <code>ls</code>、<code>cd</code>、<code>git</code> 都是它来执行。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🍎</span><span class="card-title">macOS</span>
+      <span class="tag tag-blue">必备</span>
+    </div>
+    <div class="card-body">
+      <p><strong>一句话：</strong>你电脑的「大管家」。</p>
+      <p>基于 Unix 内核（和 Linux 是亲戚），天生适合开发。所有工具都跑在它上面。Build 号是每个具体版本的内部编号。</p>
+    </div>
+  </div>
+
+  <footer>开发环境监测看板 · 让每个工具都变得好理解 · 共 25 项</footer>
+</div>
+</body>
+</html>

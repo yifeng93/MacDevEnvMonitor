@@ -4,8 +4,19 @@
 
 ## 功能
 
-- 检测 10 项开发环境：Homebrew、Node.js、Python3、Git、Java、Docker、Xcode CLT、VS Code、Shell、macOS
+- 检测 25 项开发环境，涵盖包管理器、语言运行时、开发工具、容器、编辑器、终端、系统信息
 - 状态图标：✅ 已安装 / ⚠️ 未安装 / ❌ 服务未运行
+
+### 完整检测清单
+
+| 类别 | 检测项 |
+|---|---|
+| 包管理器 | Homebrew、nvm、pnpm、Yarn |
+| 语言运行时 | Node.js、Bun、Python3、Ruby、Go、Rust、Java |
+| 开发工具 | Git、TypeScript、Vite、ESLint、Prettier |
+| 容器 | Docker |
+| 编辑器 & 终端 | VS Code、Cursor、iTerm2、Oh My Zsh、Google Chrome |
+| 系统 | Xcode CLT、Shell、macOS |
 - 半透明毛玻璃背景，窗口可置顶悬浮
 - 手动刷新 + 定时自动刷新（可配置间隔）
 - 点击工具行打开对应官网

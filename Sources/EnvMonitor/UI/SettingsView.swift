@@ -61,7 +61,7 @@ struct SettingsView: View {
                 Text("轻量级 macOS 原生应用，只读检测，不做任何系统修改。")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("点击环境项可打开其官网。")
+                Text("点击卡片查看详情，点击名称可打开官网。")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

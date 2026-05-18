@@ -4,6 +4,7 @@ import Foundation
 /// 所有检测为只读操作，不修改系统文件或配置。
 class EnvChecker: ObservableObject {
     @Published var items: [EnvItem] = []
+    @Published var hostStatus = HostStatus()
     @Published var isRefreshing = false
     @Published var lastUpdate: Date?
 
@@ -39,8 +40,10 @@ class EnvChecker: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             let results = self.collectAll()
+            let status = self.collectHostStatus()
             DispatchQueue.main.async {
                 self.items = results
+                self.hostStatus = status
                 self.lastUpdate = Date()
                 self.isRefreshing = false
             }
@@ -446,6 +449,94 @@ class EnvChecker: ObservableObject {
         let build = exec("sw_vers", "-buildVersion")
         if !build.isEmpty { item.detail = "Build \(build)" }
         return item
+    }
+
+    // ============================================================
+    // MARK: 主机状态
+    // ============================================================
+
+    private func collectHostStatus() -> HostStatus {
+        var status = HostStatus()
+
+        // CPU 核心数与型号
+        let cpuCores = exec("sysctl", "-n", "hw.ncpu")
+        status.cpuCores = Int(cpuCores) ?? 0
+        status.cpuModel = exec("sysctl", "-n", "machdep.cpu.brand_string")
+
+        // CPU 使用率（通过 top 采样）
+        let topOutput = exec("top", "-l", "1", "-n", "0")
+        for line in topOutput.split(separator: "\n") where line.contains("CPU usage") {
+            let parts = line.split(separator: " ")
+            if let idleIdx = parts.firstIndex(where: { $0 == "idle" }), idleIdx > 0 {
+                let idleStr = parts[idleIdx - 1].replacingOccurrences(of: "%", with: "")
+                if let idle = Double(idleStr) {
+                    status.cpuUsage = min(100, max(0, 100.0 - idle))
+                }
+            }
+            break
+        }
+
+        // 内存：总量
+        let memSizeStr = exec("sysctl", "-n", "hw.memsize")
+        status.ramTotal = UInt64(memSizeStr) ?? 0
+
+        // 内存：已用（通过 vm_stat 计算）
+        let vmStat = exec("vm_stat")
+        var pageSize: UInt64 = 16384
+        var usedPages: Int64 = 0
+        if let psLine = vmStat.split(separator: "\n").first(where: { $0.contains("page size") }),
+           let ps = extractNumber(from: String(psLine)) {
+            pageSize = UInt64(ps)
+        }
+        for line in vmStat.split(separator: "\n") {
+            let s = String(line)
+            if s.contains("Pages active") || s.contains("Pages wired") || s.contains("Pages occupied") {
+                if let n = extractNumber(from: s) { usedPages += n }
+            }
+        }
+        status.ramUsed = UInt64(max(0, usedPages)) * pageSize
+        if status.ramTotal > 0 {
+            status.ramUsagePercent = Double(status.ramUsed) / Double(status.ramTotal) * 100
+        }
+
+        // 磁盘（根分区）
+        let dfOut = exec("/bin/df", "-g", "/")
+        let dfLines = dfOut.split(separator: "\n")
+        if dfLines.count >= 2 {
+            let cols = dfLines[1].split(separator: " ", omittingEmptySubsequences: true)
+            if cols.count >= 4 {
+                status.diskTotal = UInt64(cols[1]) ?? 0
+                status.diskUsed  = UInt64(cols[2]) ?? 0
+                status.diskTotal *= 1_073_741_824  // GiB → bytes
+                status.diskUsed  *= 1_073_741_824
+                if status.diskTotal > 0 {
+                    status.diskUsagePercent = Double(status.diskUsed) / Double(status.diskTotal) * 100
+                }
+            }
+        }
+
+        // 运行时间
+        let bootTimeStr = exec("sysctl", "-n", "kern.boottime")
+        // 格式: { sec = 1234567890, ... }
+        if let eqIdx = bootTimeStr.firstIndex(of: "=") {
+            let after = bootTimeStr[bootTimeStr.index(after: eqIdx)...]
+            let numStr = after.trimmingCharacters(in: .whitespacesAndNewlines)
+                .prefix(while: { $0.isNumber || $0 == "." })
+            if let bootSec = TimeInterval(numStr) {
+                status.uptime = Date().timeIntervalSince1970 - bootSec
+            }
+        }
+
+        return status
+    }
+
+    private func extractNumber(from text: String) -> Int64? {
+        // 找到字符串中最后一个数字（可能带负号）
+        let parts = text.split(separator: ":", omittingEmptySubsequences: true)
+        guard let last = parts.last else { return nil }
+        let cleaned = last.trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: ".", with: "")
+        return Int64(cleaned)
     }
 
     // ============================================================

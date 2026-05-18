@@ -35,6 +35,20 @@ enum EnvStatus: String, CaseIterable {
     }
 }
 
+// MARK: - 主机状态数据模型
+struct HostStatus {
+    var cpuUsage: Double = 0
+    var cpuCores: Int = 0
+    var cpuModel: String = ""
+    var ramUsed: UInt64 = 0
+    var ramTotal: UInt64 = 0
+    var ramUsagePercent: Double = 0
+    var diskTotal: UInt64 = 0
+    var diskUsed: UInt64 = 0
+    var diskUsagePercent: Double = 0
+    var uptime: TimeInterval = 0
+}
+
 // MARK: - 单个环境项数据模型
 struct EnvItem: Identifiable {
     let id = UUID()

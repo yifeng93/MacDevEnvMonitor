@@ -1,6 +1,5 @@
 # 编译产物
 EnvMonitor.app/
-EnvMonitor.dmg
 .dmg_staging/
 
 # macOS

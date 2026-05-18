@@ -17,6 +17,17 @@
 - Apple Silicon (M 系列芯片) — ARM64 原生
 - Xcode Command Line Tools（编译时需要）
 
+## 安装
+
+### 直接下载 DMG 安装包
+
+1. 从本仓库下载 [EnvMonitor.dmg](./EnvMonitor.dmg)
+2. 双击打开 `.dmg` 文件
+3. 将 `EnvMonitor.app` 拖入 `应用程序` 文件夹
+4. 首次打开时，由于 app 未签名，请右键点击 → **打开**（或到 **系统设置 → 隐私与安全性** 中允许运行）
+
+> 本项目已自带编译好的 DMG 安装包，无需手动编译即可使用。
+
 ## 编译
 
 ### 方式一：命令行编译

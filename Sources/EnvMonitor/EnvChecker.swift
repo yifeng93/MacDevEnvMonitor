@@ -567,15 +567,18 @@ class EnvChecker: ObservableObject {
         let out = exec("/usr/sbin/netstat", "-ibn")
         for line in out.split(separator: "\n") {
             let s = line.trimmingCharacters(in: .whitespaces)
-            // 匹配链路层行（含 <Link#N>），该行才有完整的收发字节计数
-            if s.hasPrefix(iface) && s.contains("<Link") {
-                let cols = s.split(separator: " ", omittingEmptySubsequences: true)
-                // 格式: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes Coll
-                if cols.count >= 10 {
-                    let rx = UInt64(cols[6]) ?? 0
-                    let tx = UInt64(cols[9]) ?? 0
-                    return (rx, tx)
-                }
+            // 精确匹配网口名（避免 en1 误匹配 en10）；只取链路层行（含 <Link#N>）
+            guard s.hasPrefix(iface + " ") || s.hasPrefix(iface + "\t"),
+                  s.contains("<Link") else { continue }
+            let cols = s.split(separator: " ", omittingEmptySubsequences: true)
+            // 列数不同：有 MAC 地址时 11 列，无 MAC 时 10 列（如 lo0）
+            // 格式: Name Mtu Network [Address] Ipkts Ierrs Ibytes Opkts Oerrs Obytes Coll
+            let rxIdx = cols.count >= 11 ? 6 : 5
+            let txIdx = cols.count >= 11 ? 9 : 8
+            if cols.count > max(rxIdx, txIdx) {
+                let rx = UInt64(cols[rxIdx]) ?? 0
+                let tx = UInt64(cols[txIdx]) ?? 0
+                return (rx, tx)
             }
         }
         return (0, 0)

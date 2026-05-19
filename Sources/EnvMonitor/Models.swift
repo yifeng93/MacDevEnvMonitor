@@ -46,6 +46,8 @@ struct HostStatus {
     var diskTotal: UInt64 = 0
     var diskUsed: UInt64 = 0
     var diskUsagePercent: Double = 0
+    var netDownloadSpeed: UInt64 = 0
+    var netUploadSpeed: UInt64 = 0
     var uptime: TimeInterval = 0
 }
 

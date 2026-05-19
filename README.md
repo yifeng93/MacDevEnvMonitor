@@ -4,7 +4,7 @@
 
 ## 功能
 
-### 开发环境监测（25 项）
+### 开发环境监测（24 项）
 
 卡片式网格布局，点击卡片在底部展开详情（路径、版本），点击名称打开官网。
 
@@ -13,9 +13,9 @@
 | 包管理器 | Homebrew、nvm、pnpm、Yarn |
 | 语言运行时 | Node.js、Bun、Python3、Ruby、Go、Rust、Java |
 | 开发工具 | Git、TypeScript、Vite、ESLint、Prettier |
-| 容器 | Docker |
-| 编辑器 & 终端 | VS Code、Cursor、iTerm2、Oh My Zsh、Google Chrome |
-| 系统 | Xcode CLT、Shell、macOS |
+| 容器 | Docker、Ollama |
+| 编辑器 & 终端 | VS Code、Cursor、iTerm2、Oh My Zsh |
+| 系统 | Xcode CLT、Shell |
 
 状态图标：✅ 已安装 / ❌ 未安装 / ⚠️ 服务未运行
 
@@ -25,7 +25,8 @@
 |---|---|
 | CPU | 使用率 + 核心数 + 型号，进度条颜色自动变化 |
 | 内存 | 已用/总量 + 使用率进度条 |
-| 磁盘 | 已用/总量 + 使用率进度条 |
+| 磁盘 | 已用/总量 + 使用率进度条（APFS 真实占用） |
+| 网速 | 实时上传/下载速率 |
 | 运行时间 | 距离上次开机已过多久 |
 
 - 半透明毛玻璃背景，窗口可置顶悬浮

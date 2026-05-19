@@ -190,6 +190,28 @@ struct ContentView: View {
                     color: diskColor
                 )
 
+                // 网速
+                HStack {
+                    Image(systemName: "arrow.down")
+                        .foregroundColor(.blue)
+                    Text("下载")
+                        .font(.caption)
+                    Text(formatNetSpeed(checker.hostStatus.netDownloadSpeed))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Image(systemName: "arrow.up")
+                        .foregroundColor(.green)
+                    Text("上传")
+                        .font(.caption)
+                    Text(formatNetSpeed(checker.hostStatus.netUploadSpeed))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+
                 // 运行时间
                 HStack {
                     Image(systemName: "clock.fill")
@@ -384,6 +406,13 @@ struct ContentView: View {
         if u < 50 { return .green }
         if u < 80 { return .orange }
         return .red
+    }
+
+    private func formatNetSpeed(_ bytesPerSec: UInt64) -> String {
+        if bytesPerSec == 0 { return "--" }
+        if bytesPerSec >= 1_000_000 { return String(format: "%.1f MB/s", Double(bytesPerSec) / 1_000_000) }
+        if bytesPerSec >= 1_000 { return String(format: "%.0f KB/s", Double(bytesPerSec) / 1_000) }
+        return "\(bytesPerSec) B/s"
     }
 
     private func formatBytes(_ bytes: UInt64) -> String {

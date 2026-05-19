@@ -11,6 +11,11 @@ class EnvChecker: ObservableObject {
     private let searchPath = "/opt/homebrew/bin:/opt/local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     private let fm = FileManager.default
 
+    // 网速采样：前次读数 + 时间戳，用于计算速率
+    private var prevNetRxBytes: UInt64 = 0
+    private var prevNetTxBytes: UInt64 = 0
+    private var prevNetSampleTime: Date?
+
     // MARK: - .app 路径定义
 
     private let appPaths: [String: [String]] = [
@@ -25,10 +30,6 @@ class EnvChecker: ObservableObject {
         "iterm2": [
             "/Applications/iTerm.app",
             NSString("~/Applications/iTerm.app").expandingTildeInPath,
-        ],
-        "chrome": [
-            "/Applications/Google Chrome.app",
-            NSString("~/Applications/Google Chrome.app").expandingTildeInPath,
         ],
     ]
 
@@ -50,7 +51,7 @@ class EnvChecker: ObservableObject {
         }
     }
 
-    // MARK: - 全量检测（25 项）
+    // MARK: - 全量检测（24 项）
 
     private func collectAll() -> [EnvItem] {
         [
@@ -75,16 +76,15 @@ class EnvChecker: ObservableObject {
             checkPrettier(),
             // ---- 容器 ----
             checkDocker(),
+            checkOllama(),
             // ---- 编辑器 & 终端 ----
             checkVSCode(),
             checkCursor(),
             checkITerm2(),
             checkOhMyZsh(),
-            checkChrome(),
             // ---- 系统 ----
             checkXcodeCLT(),
             checkShell(),
-            checkMacOS(),
         ]
     }
 
@@ -393,15 +393,18 @@ class EnvChecker: ObservableObject {
         return item
     }
 
-    private func checkChrome() -> EnvItem {
-        var item = EnvItem(name: "Google Chrome", icon: "globe",
-                           website: URL(string: "https://www.google.com/chrome"))
-        if let path = findAppBundle(in: "chrome") {
-            item.status = .installed
-            item.detail = path
-            item.version = appVersion(at: path)
+    private func checkOllama() -> EnvItem {
+        var item = EnvItem(name: "Ollama", icon: "brain.head.profile",
+                           website: URL(string: "https://ollama.com"))
+        guard which("ollama") else { item.status = .notInstalled; return item }
+        item.version = exec("ollama", "--version")
+        item.detail = whichPath("ollama")
+        // 检查 ollama 服务是否在运行
+        let (_, code) = run("pgrep", "-f", "ollama serve")
+        if code != 0 {
+            item.status = .serviceNotRunning
         } else {
-            item.status = .notInstalled
+            item.status = .installed
         }
         return item
     }
@@ -439,15 +442,6 @@ class EnvChecker: ObservableObject {
             }
         }
         if item.version.isEmpty { item.version = ProcessInfo.processInfo.environment["SHELL"] ?? "未知" }
-        return item
-    }
-
-    private func checkMacOS() -> EnvItem {
-        var item = EnvItem(name: "macOS", icon: "desktopcomputer", website: nil)
-        item.status = .installed
-        item.version = exec("sw_vers", "-productVersion")
-        let build = exec("sw_vers", "-buildVersion")
-        if !build.isEmpty { item.detail = "Build \(build)" }
         return item
     }
 
@@ -500,20 +494,37 @@ class EnvChecker: ObservableObject {
         }
 
         // 磁盘（根分区）
+        // APFS 的 "Used" 列只统计当前卷独占数据，不反映容器内其他卷和快照的占用。
+        // 用 Total - Available 才能得到真实的磁盘已用空间。
         let dfOut = exec("/bin/df", "-g", "/")
         let dfLines = dfOut.split(separator: "\n")
         if dfLines.count >= 2 {
             let cols = dfLines[1].split(separator: " ", omittingEmptySubsequences: true)
             if cols.count >= 4 {
-                status.diskTotal = UInt64(cols[1]) ?? 0
-                status.diskUsed  = UInt64(cols[2]) ?? 0
-                status.diskTotal *= 1_073_741_824  // GiB → bytes
-                status.diskUsed  *= 1_073_741_824
+                let totalBlocks = UInt64(cols[1]) ?? 0
+                let availBlocks = UInt64(cols[3]) ?? 0
+                status.diskTotal = totalBlocks * 1_073_741_824
+                status.diskUsed  = (totalBlocks - availBlocks) * 1_073_741_824
                 if status.diskTotal > 0 {
                     status.diskUsagePercent = Double(status.diskUsed) / Double(status.diskTotal) * 100
                 }
             }
         }
+
+        // 网速：通过 netstat -ibn 读取主网口的收发字节，两次采样间计算速率
+        let now = Date()
+        let defaultIface = findDefaultInterface()
+        let (rx, tx) = readNetBytes(iface: defaultIface)
+        if let prevTime = prevNetSampleTime, rx >= prevNetRxBytes, tx >= prevNetTxBytes {
+            let dt = now.timeIntervalSince(prevTime)
+            if dt > 0 {
+                status.netDownloadSpeed = UInt64(Double(rx - prevNetRxBytes) / dt)
+                status.netUploadSpeed   = UInt64(Double(tx - prevNetTxBytes) / dt)
+            }
+        }
+        prevNetRxBytes = rx
+        prevNetTxBytes = tx
+        prevNetSampleTime = now
 
         // 运行时间
         let bootTimeStr = exec("sysctl", "-n", "kern.boottime")
@@ -537,6 +548,37 @@ class EnvChecker: ObservableObject {
         let cleaned = last.trimmingCharacters(in: .whitespaces)
             .replacingOccurrences(of: ".", with: "")
         return Int64(cleaned)
+    }
+
+    // MARK: - 网速采样
+
+    /// 查找默认路由对应的网络接口名（如 en0）
+    private func findDefaultInterface() -> String {
+        let out = exec("/sbin/route", "-n", "get", "default")
+        for line in out.split(separator: "\n") where line.contains("interface:") {
+            return line.replacingOccurrences(of: "interface:", with: "")
+                       .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return "en0" // 回退到 WiFi
+    }
+
+    /// 从 netstat -ibn 输出中读取指定网口的收发字节总数
+    private func readNetBytes(iface: String) -> (rx: UInt64, tx: UInt64) {
+        let out = exec("/usr/sbin/netstat", "-ibn")
+        for line in out.split(separator: "\n") {
+            let s = line.trimmingCharacters(in: .whitespaces)
+            // 匹配链路层行（含 <Link#N>），该行才有完整的收发字节计数
+            if s.hasPrefix(iface) && s.contains("<Link") {
+                let cols = s.split(separator: " ", omittingEmptySubsequences: true)
+                // 格式: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes Coll
+                if cols.count >= 10 {
+                    let rx = UInt64(cols[6]) ?? 0
+                    let tx = UInt64(cols[9]) ?? 0
+                    return (rx, tx)
+                }
+            }
+        }
+        return (0, 0)
     }
 
     // ============================================================

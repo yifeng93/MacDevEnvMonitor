@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - 设置视图
 
 struct SettingsView: View {
-    @Binding var alwaysOnTop: Bool
+    @Binding var isPresented: Bool
     @AppStorage("refreshInterval") private var refreshInterval: Double = 30
 
     private let intervals: [(Double, String)] = [
@@ -21,7 +21,6 @@ struct SettingsView: View {
 
             Divider()
 
-            // 自动刷新间隔
             VStack(alignment: .leading, spacing: 6) {
                 Text("自动刷新间隔")
                     .font(.subheadline)
@@ -36,34 +35,22 @@ struct SettingsView: View {
 
             Divider()
 
-            // 窗口置顶
-            Toggle(isOn: $alwaysOnTop) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("窗口置顶")
-                        .font(.subheadline)
-                    Text("窗口始终悬浮在其他窗口之上")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .toggleStyle(.switch)
-
-            Divider()
-
-            // 说明
             VStack(alignment: .leading, spacing: 4) {
                 Text("关于")
                     .font(.subheadline)
                     .padding(.bottom, 2)
-                Text("开发环境监测看板 v1.0")
+                Text("开发环境监测看板 v2.2")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Text("轻量级 macOS 原生应用，只读检测，不做任何系统修改。")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("点击卡片查看详情，点击名称可打开官网。")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            }
+
+            HStack {
+                Spacer()
+                Button("关闭") { isPresented = false }
+                    .keyboardShortcut(.escape)
             }
         }
         .padding(20)

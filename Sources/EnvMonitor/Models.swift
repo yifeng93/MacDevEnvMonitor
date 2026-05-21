@@ -61,3 +61,33 @@ struct EnvItem: Identifiable {
     var version: String = ""
     var detail: String = ""
 }
+
+// MARK: - 运行服务监测模型
+
+enum ServiceCategory: String, CaseIterable, Identifiable {
+    case docker = "Docker 容器"
+    case ollama = "Ollama 模型"
+    case systemServices = "系统服务"
+    case ports = "监听端口"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .docker:         return "shippingbox.fill"
+        case .ollama:         return "brain.head.profile"
+        case .systemServices: return "gearshape.2.fill"
+        case .ports:          return "network"
+        }
+    }
+}
+
+struct ServiceItem: Identifiable {
+    let id = UUID()
+    let name: String
+    let category: ServiceCategory
+    var isRunning: Bool = false
+    var detail: String = ""
+    var extraInfo: String = ""
+}
+

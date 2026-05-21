@@ -6,17 +6,17 @@ import AppKit
 private enum MonitorTab: String, CaseIterable {
     case devEnv = "开发环境"
     case host = "主机状态"
+    case services = "运行服务"
 }
 
 // MARK: - 主内容视图
 
 struct ContentView: View {
     @ObservedObject var checker: EnvChecker
-    @Binding var alwaysOnTop: Bool
     @State private var showSettings = false
-    @State private var windowRef: NSWindow?
     @State private var selectedTab: MonitorTab = .devEnv
     @State private var selectedItem: EnvItem.ID?
+    @State private var expandedSections: Set<String> = ["Docker 容器", "Ollama 模型", "系统服务", "监听端口"]
 
     private let columns = [
         GridItem(.flexible(), spacing: 6),
@@ -40,24 +40,8 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 380, minHeight: 460)
-        .background(WindowAccessor { window in
-            guard let w = window else { return }
-            if windowRef == nil {
-                windowRef = w
-                w.title = "开发环境监测"
-                w.titlebarAppearsTransparent = true
-                w.isMovableByWindowBackground = true
-                w.level = alwaysOnTop ? .floating : .normal
-                w.collectionBehavior = [.canJoinAllSpaces, .stationary]
-                w.setContentSize(NSSize(width: 480, height: 600))
-                w.minSize = NSSize(width: 360, height: 420)
-            }
-        })
-        .onChange(of: alwaysOnTop) { newValue in
-            windowRef?.level = newValue ? .floating : .normal
-        }
-        .popover(isPresented: $showSettings, arrowEdge: .trailing) {
-            SettingsView(alwaysOnTop: $alwaysOnTop)
+        .sheet(isPresented: $showSettings) {
+            SettingsView(isPresented: $showSettings)
         }
     }
 
@@ -65,7 +49,7 @@ struct ContentView: View {
 
     private var headerBar: some View {
         HStack {
-            Image(systemName: "macbook.and.iphone")
+            Image(systemName: "chart.bar.doc.horizontal")
                 .font(.title3)
             Text("开发环境监测")
                 .font(.headline)
@@ -78,7 +62,7 @@ struct ContentView: View {
             }
             .buttonStyle(.plain)
             .disabled(checker.isRefreshing)
-            .help("手动刷新 (Cmd+R)")
+            .help("手动刷新")
             .opacity(checker.isRefreshing ? 0.4 : 1.0)
             .rotationEffect(.degrees(checker.isRefreshing ? 360 : 0))
             .animation(checker.isRefreshing
@@ -102,9 +86,18 @@ struct ContentView: View {
             }
             .buttonStyle(.plain)
             .help("设置")
+
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+            }
+            .buttonStyle(.plain)
+            .help("退出")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     // MARK: - 标签页切换
@@ -116,8 +109,8 @@ struct ContentView: View {
             }
         }
         .pickerStyle(.segmented)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
         .onChange(of: selectedTab) { _ in
             selectedItem = nil
         }
@@ -132,6 +125,8 @@ struct ContentView: View {
             devEnvGrid
         case .host:
             hostStatusView
+        case .services:
+            servicesView
         }
     }
 
@@ -267,6 +262,119 @@ struct ContentView: View {
         .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.04)))
     }
 
+    // MARK: - 运行服务视图
+
+    private var servicesView: some View {
+        let grouped = groupedServices
+        return ScrollView {
+            VStack(spacing: 8) {
+                if grouped.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "server.rack")
+                            .font(.largeTitle)
+                            .foregroundColor(.secondary)
+                        Text("未检测到运行中的服务")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                } else {
+                    ForEach(Array(grouped.enumerated()), id: \.element.category.id) { _, group in
+                        serviceSection(category: group.category, icon: group.icon, items: group.items)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+        }
+    }
+
+    private var groupedServices: [(category: ServiceCategory, icon: String, items: [ServiceItem])] {
+        Dictionary(grouping: checker.serviceItems, by: { $0.category })
+            .map { ($0.key, $0.key.icon, $0.value) }
+            .sorted { a, b in
+                let order: [ServiceCategory] = [.docker, .ollama, .systemServices, .ports]
+                return (order.firstIndex(of: a.0) ?? 99) < (order.firstIndex(of: b.0) ?? 99)
+            }
+    }
+
+    private func serviceSection(category: ServiceCategory, icon: String, items: [ServiceItem]) -> some View {
+        let isExpanded = expandedSections.contains(category.rawValue)
+        let runningCount = items.filter(\.isRunning).count
+
+        return VStack(spacing: 0) {
+            // 分类标题栏
+            Button {
+                if isExpanded {
+                    expandedSections.remove(category.rawValue)
+                } else {
+                    expandedSections.insert(category.rawValue)
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Image(systemName: icon)
+                        .font(.subheadline)
+                        .foregroundColor(.accentColor)
+                    Text(category.rawValue)
+                        .font(.subheadline.weight(.medium))
+                    Text("\(runningCount)/\(items.count) 运行中")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                Divider().opacity(0.2)
+                VStack(spacing: 2) {
+                    ForEach(items) { item in
+                        serviceRow(item)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+    }
+
+    private func serviceRow(_ item: ServiceItem) -> some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(item.isRunning ? Color.green : Color.secondary.opacity(0.3))
+                .frame(width: 6, height: 6)
+
+            Text(item.name)
+                .font(.caption)
+                .lineLimit(1)
+
+            Spacer()
+
+            if !item.detail.isEmpty {
+                Text(item.detail)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+
+            if !item.extraInfo.isEmpty {
+                Text(item.extraInfo)
+                    .font(.caption2)
+                    .foregroundColor(item.isRunning ? .secondary : .orange)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+    }
+
     // MARK: - 底部详情面板
 
     @ViewBuilder
@@ -277,7 +385,6 @@ struct ContentView: View {
             VStack(spacing: 4) {
                 HStack(spacing: 6) {
                     Image(systemName: item.icon)
-                    // 可点击的名称 → 打开官网
                     if let url = item.website {
                         Button {
                             NSWorkspace.shared.open(url)
@@ -293,7 +400,6 @@ struct ContentView: View {
                             .font(.subheadline.weight(.medium))
                     }
 
-                    // 状态标签
                     Text(item.status.label)
                         .font(.caption2)
                         .foregroundColor(item.status.color)
@@ -360,8 +466,8 @@ struct ContentView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
     }
 
     // MARK: - 打开环境解释页面
@@ -430,20 +536,6 @@ struct ContentView: View {
         if hours > 0 { return "\(hours) 小时 \(mins) 分钟" }
         return "\(mins) 分钟"
     }
-}
-
-// MARK: - NSWindow 引用捕获器
-
-private struct WindowAccessor: NSViewRepresentable {
-    let callback: (NSWindow?) -> Void
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async { self.callback(view.window) }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
 // MARK: - 毛玻璃视觉效果

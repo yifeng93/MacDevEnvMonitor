@@ -5,6 +5,7 @@ import Foundation
 class EnvChecker: ObservableObject {
     @Published var items: [EnvItem] = []
     @Published var hostStatus = HostStatus()
+    @Published var serviceItems: [ServiceItem] = []
     @Published var isRefreshing = false
     @Published var lastUpdate: Date?
 
@@ -42,9 +43,11 @@ class EnvChecker: ObservableObject {
             guard let self = self else { return }
             let results = self.collectAll()
             let status = self.collectHostStatus()
+            let services = self.collectAllServices()
             DispatchQueue.main.async {
                 self.items = results
                 self.hostStatus = status
+                self.serviceItems = services
                 self.lastUpdate = Date()
                 self.isRefreshing = false
             }
@@ -585,7 +588,209 @@ class EnvChecker: ObservableObject {
     }
 
     // ============================================================
-    // MARK: Shell 命令执行
+    // MARK: 运行服务监测
+    // ============================================================
+
+    private func collectAllServices() -> [ServiceItem] {
+        var items: [ServiceItem] = []
+        items.append(contentsOf: checkDockerContainers())
+        items.append(contentsOf: checkOllamaServices())
+        items.append(contentsOf: checkSystemServices())
+        items.append(contentsOf: checkListeningPorts())
+        return items
+    }
+
+    /// Docker 容器列表
+    private func checkDockerContainers() -> [ServiceItem] {
+        guard which("docker") else { return [] }
+        let (output, code) = run("docker", "ps", "--format", "{{.Names}}\\t{{.Image}}\\t{{.Status}}\\t{{.Ports}}")
+        guard code == 0, !output.isEmpty else { return [] }
+        var items: [ServiceItem] = []
+        for line in output.split(separator: "\n") {
+            let cols = line.split(separator: "\t", omittingEmptySubsequences: true)
+            guard cols.count >= 1 else { continue }
+            let name = String(cols[0])
+            let image = cols.count >= 2 ? String(cols[1]) : ""
+            let status = cols.count >= 3 ? String(cols[2]) : ""
+            let ports = cols.count >= 4 ? String(cols[3]) : ""
+            let isRunning = status.hasPrefix("Up")
+            var detail = image
+            if !ports.isEmpty { detail += "  ·  \(ports)" }
+            var item = ServiceItem(name: name, category: .docker, isRunning: isRunning, detail: detail)
+            item.extraInfo = status
+            items.append(item)
+        }
+        return items
+    }
+
+    /// Ollama 模型状态
+    private func checkOllamaServices() -> [ServiceItem] {
+        guard which("ollama") else { return [] }
+        var items: [ServiceItem] = []
+
+        // 获取所有已下载模型
+        let listOut = exec("ollama", "list")
+        var allModels: [(name: String, size: String)] = []
+        for line in listOut.split(separator: "\n").dropFirst() { // 跳过表头
+            let cols = line.split(separator: " ", omittingEmptySubsequences: true)
+            if let first = cols.first {
+                let modelName = String(first)
+                let size = cols.count >= 3 ? String(cols[2]) : ""
+                // 如果 size 旁边还有单位
+                let fullSize = cols.count >= 4 ? size + " " + String(cols[3]) : size
+                allModels.append((modelName, fullSize))
+            }
+        }
+
+        // 获取当前加载的模型
+        let psOut = exec("ollama", "ps")
+        var loadedModels: Set<String> = []
+        for line in psOut.split(separator: "\n").dropFirst() {
+            if let first = line.split(separator: " ", omittingEmptySubsequences: true).first {
+                loadedModels.insert(String(first))
+            }
+        }
+
+        for model in allModels {
+            let isLoaded = loadedModels.contains(model.name)
+            var item = ServiceItem(
+                name: model.name,
+                category: .ollama,
+                isRunning: isLoaded,
+                detail: model.size
+            )
+            item.extraInfo = isLoaded ? "已加载到内存" : "已下载，未加载"
+            items.append(item)
+        }
+
+        // 如果没有通过 ollama list 获取到模型，检查 ps
+        if items.isEmpty {
+            for line in psOut.split(separator: "\n").dropFirst() {
+                let cols = line.split(separator: " ", omittingEmptySubsequences: true)
+                if let first = cols.first {
+                    let size = cols.count >= 3 ? String(cols[2]) + (cols.count >= 4 ? " " + String(cols[3]) : "") : ""
+                    var item = ServiceItem(
+                        name: String(first),
+                        category: .ollama,
+                        isRunning: true,
+                        detail: size
+                    )
+                    item.extraInfo = "已加载到内存"
+                    items.append(item)
+                }
+            }
+        }
+
+        return items
+    }
+
+    /// 常见系统后台服务
+    private func checkSystemServices() -> [ServiceItem] {
+        let services: [(name: String, processName: String, versionArgs: [String])] = [
+            ("Nginx", "nginx", ["-v"]),
+            ("Apache HTTPD", "httpd", ["-v"]),
+            ("MySQL", "mysqld", ["--version"]),
+            ("MariaDB", "mariadbd", ["--version"]),
+            ("PostgreSQL", "postgres", ["--version"]),
+            ("Redis", "redis-server", ["--version"]),
+            ("MongoDB", "mongod", ["--version"]),
+            ("RabbitMQ", "rabbitmq-server", []),
+            ("Jenkins", "jenkins", ["--version"]),
+            ("Grafana", "grafana-server", ["-v"]),
+            ("Prometheus", "prometheus", ["--version"]),
+        ]
+
+        var items: [ServiceItem] = []
+        for svc in services {
+            var item = ServiceItem(name: svc.name, category: .systemServices)
+            let processes = exec("pgrep", "-fl", svc.processName)
+            if !processes.isEmpty {
+                item.isRunning = true
+                // 尝试获取版本
+                if !svc.versionArgs.isEmpty {
+                    let result = runArgs([svc.processName] + svc.versionArgs)
+                    let ver = result.0.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !ver.isEmpty {
+                        // 许多服务的版本输出到 stderr，截取第一行
+                        item.detail = ver.split(separator: "\n").first.map(String.init) ?? ""
+                    }
+                }
+                // 提取 PID
+                let firstLine = processes.split(separator: "\n").first ?? ""
+                let firstCol = firstLine.split(separator: " ", omittingEmptySubsequences: true).first ?? ""
+                item.extraInfo = "PID: \(firstCol)"
+            } else {
+                item.isRunning = false
+                item.extraInfo = "未运行"
+            }
+            items.append(item)
+        }
+        return items
+    }
+
+    /// 监听 TCP 端口
+    private func checkListeningPorts() -> [ServiceItem] {
+        let out = exec("/usr/sbin/lsof", "-iTCP", "-sTCP:LISTEN", "-nP")
+        var items: [ServiceItem] = []
+        var seen = Set<String>() // 去重: 进程名+端口
+
+        for line in out.split(separator: "\n").dropFirst() {
+            let cols = line.split(separator: " ", omittingEmptySubsequences: true)
+            // 格式: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
+            // 索引:  0       1   2    3  4    5      6        7    8
+            guard cols.count >= 9 else { continue }
+            let process = String(cols[0])
+            let pid = String(cols[1])
+            let nameField = String(cols[8])
+
+            // 过滤掉 macOS 系统服务端口
+            let systemProcesses: Set<String> = [
+                "rapportd", "ControlCe", "sharingd", "remoted", "ARDAgent",
+                "corecdn", "sysmond", "WiFiAgent", "nfsd", "rpc.statd",
+                "SystemUIS", "UserEvent", "univers", "netbiosd", "ocspd", "trustd"
+            ]
+            guard !systemProcesses.contains(process) else { continue }
+
+            // 提取端口号
+            guard let portRange = nameField.split(separator: ":").last,
+                  let _ = Int(portRange) else { continue }
+
+            let port = String(portRange)
+            let key = "\(process):\(port)"
+            if seen.contains(key) { continue }
+            seen.insert(key)
+
+            let isDevPort = isCommonDevPort(port)
+            var item = ServiceItem(
+                name: ":\(port)",
+                category: .ports,
+                isRunning: true,
+                detail: process
+            )
+            item.extraInfo = "PID: \(pid)" + (isDevPort ? "  ·  开发端口" : "")
+            items.append(item)
+        }
+
+        // 按端口号排序
+        items.sort { a, b in
+            let pa = Int(a.name.dropFirst()) ?? 0
+            let pb = Int(b.name.dropFirst()) ?? 0
+            return pa < pb
+        }
+        return items
+    }
+
+    private func isCommonDevPort(_ port: String) -> Bool {
+        let devPorts: Set<String> = [
+            "3000", "3001", "4200", "5000", "5173", "8000", "8080", "8888", "9000",
+            "3306", "5432", "6379", "27017", "11434",
+            "9090", "9092", "15672", "5672", "9200", "5601",
+        ]
+        return devPorts.contains(port)
+    }
+
+    // ============================================================
+    // MARK: Shell 命令执行 (已有)
     // ============================================================
 
     private func which(_ name: String) -> Bool {

@@ -1,5 +1,26 @@
 # 开发日志
 
+## v2.2 — 2026-05-21
+
+### 新增
+
+- **运行服务监测**：新增"运行服务"标签页，实时监测 4 类后台服务：
+  - **Docker 容器**：通过 `docker ps` 列出运行中容器，显示名称、镜像、状态、端口映射
+  - **Ollama 模型**：通过 `ollama list` + `ollama ps` 显示已下载模型及当前加载到内存的模型
+  - **系统服务**：通过 `pgrep` 检测 nginx、mysql、postgres、redis、mongod 等 11 项常见后台服务是否在运行
+  - **监听端口**：通过 `lsof -iTCP` 扫描所有 TCP LISTEN 端口，标记常见开发端口
+- **Menu Bar 状态栏模式**：App 从桌面窗口改为 macOS 右上角状态栏驻留，点击图标弹出 Popover 面板，不占用桌面和 Dock 空间
+
+### 变更
+
+- **窗口 → 状态栏**：`WindowGroup` 架构改为 `NSApplicationDelegate` + `NSStatusItem` + `NSPopover`
+- **移除窗口置顶开关**：Popover 本身就是浮层，不再需要置顶设置
+- **新增退出按钮**：面板顶部增加 X 按钮，方便退出 App
+- **LSUIElement = true**：隐藏 Dock 图标，纯状态栏运行模式
+- **版本号**：v2.1 → v2.2
+
+---
+
 ## v2.1 — 2026-05-19
 
 ### 新增
